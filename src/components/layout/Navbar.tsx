@@ -44,6 +44,9 @@ export function Navbar() {
             <Link to="/hackathons" className="text-muted-foreground hover:text-foreground transition-colors">
               Browse Hackathons
             </Link>
+            <Link to="/gallery" className="text-muted-foreground hover:text-foreground transition-colors">
+              Gallery
+            </Link>
             {user && (
               <>
                 <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">

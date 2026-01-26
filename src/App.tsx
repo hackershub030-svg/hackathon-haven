@@ -14,6 +14,7 @@ import CreateHackathon from "./pages/CreateHackathon";
 import Profile from "./pages/Profile";
 import ProjectSubmission from "./pages/ProjectSubmission";
 import OrganizerDashboard from "./pages/OrganizerDashboard";
+import ProjectGallery from "./pages/ProjectGallery";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/hackathons" element={<Hackathons />} />
+            <Route path="/gallery" element={<ProjectGallery />} />
             <Route path="/hackathon/:id" element={<HackathonDetail />} />
             <Route
               path="/dashboard"

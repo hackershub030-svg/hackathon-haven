@@ -157,6 +157,47 @@ export type Database = {
         }
         Relationships: []
       }
+      judging_rubrics: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          hackathon_id: string
+          id: string
+          max_score: number
+          name: string
+          sort_order: number
+          weight: number
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          hackathon_id: string
+          id?: string
+          max_score?: number
+          name: string
+          sort_order?: number
+          weight?: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          hackathon_id?: string
+          id?: string
+          max_score?: number
+          name?: string
+          sort_order?: number
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "judging_rubrics_hackathon_id_fkey"
+            columns: ["hackathon_id"]
+            isOneToOne: false
+            referencedRelation: "hackathons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string | null
@@ -311,6 +352,51 @@ export type Database = {
         }
         Relationships: []
       }
+      project_scores: {
+        Row: {
+          created_at: string | null
+          feedback: string | null
+          id: string
+          judge_id: string
+          project_id: string
+          rubric_id: string
+          score: number
+        }
+        Insert: {
+          created_at?: string | null
+          feedback?: string | null
+          id?: string
+          judge_id: string
+          project_id: string
+          rubric_id: string
+          score: number
+        }
+        Update: {
+          created_at?: string | null
+          feedback?: string | null
+          id?: string
+          judge_id?: string
+          project_id?: string
+          rubric_id?: string
+          score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_scores_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_scores_rubric_id_fkey"
+            columns: ["rubric_id"]
+            isOneToOne: false
+            referencedRelation: "judging_rubrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           created_at: string | null
@@ -327,6 +413,7 @@ export type Database = {
           updated_at: string | null
           user_id: string | null
           video_url: string | null
+          winner_position: number | null
         }
         Insert: {
           created_at?: string | null
@@ -343,6 +430,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string | null
           video_url?: string | null
+          winner_position?: number | null
         }
         Update: {
           created_at?: string | null
@@ -359,6 +447,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string | null
           video_url?: string | null
+          winner_position?: number | null
         }
         Relationships: [
           {

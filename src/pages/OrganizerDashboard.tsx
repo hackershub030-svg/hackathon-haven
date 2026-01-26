@@ -17,8 +17,8 @@ import {
   Send,
   Play,
   Pause,
-  BarChart3,
   Mail,
+  Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +34,7 @@ import { Layout } from '@/components/layout/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { JudgingTab } from '@/components/organizer/JudgingTab';
 
 type ApplicationStatus = 'draft' | 'submitted' | 'accepted' | 'rejected' | 'waitlisted';
 type HackathonStatus = 'draft' | 'live' | 'ended';
@@ -133,6 +134,25 @@ export default function OrganizerDashboard() {
         .eq('id', appId);
 
       if (error) throw error;
+
+      // Send notification email for accept/reject
+      if ((status === 'accepted' || status === 'rejected') && hackathon) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          await supabase.functions.invoke('send-application-notification', {
+            body: {
+              applicationId: appId,
+              status,
+              hackathonTitle: hackathon.title,
+            },
+            headers: {
+              Authorization: `Bearer ${sessionData.session?.access_token}`,
+            },
+          });
+        } catch (notifyError) {
+          console.error('Failed to send notification:', notifyError);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hackathon-applications'] });
@@ -340,6 +360,10 @@ export default function OrganizerDashboard() {
                   <Trophy className="w-4 h-4 mr-2" />
                   Submissions
                 </TabsTrigger>
+                <TabsTrigger value="judging">
+                  <Star className="w-4 h-4 mr-2" />
+                  Judging
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="applications">
@@ -527,6 +551,10 @@ export default function OrganizerDashboard() {
                     </div>
                   )}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="judging">
+                <JudgingTab hackathonId={id!} />
               </TabsContent>
             </Tabs>
           </motion.div>

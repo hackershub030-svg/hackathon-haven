@@ -17,8 +17,8 @@ import {
   Loader2,
   Plus,
   Trash2,
-  Image,
 } from 'lucide-react';
+import { BannerSelector } from '@/components/hackathon/BannerSelector';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -78,6 +78,9 @@ export default function CreateHackathon() {
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [applicationDeadline, setApplicationDeadline] = useState<Date>();
+  const [bannerUrl, setBannerUrl] = useState<string>(
+    'https://static.vecteezy.com/system/resources/thumbnails/069/192/964/small/modern-abstract-purple-wave-on-dark-background-tech-banner-corporate-business-concept-hi-tech-abstract-background-illustration-for-business-or-presentation-vector.jpg'
+  );
   const [prizes, setPrizes] = useState<Prize[]>([
     { title: '1st Place', amount: 1000, description: '', position: 1 },
     { title: '2nd Place', amount: 500, description: '', position: 2 },
@@ -123,6 +126,7 @@ export default function CreateHackathon() {
       setValue('min_team_size', data.min_team_size);
       setValue('max_team_size', data.max_team_size);
 
+      if (data.banner_url) setBannerUrl(data.banner_url);
       if (data.start_date) setStartDate(new Date(data.start_date));
       if (data.end_date) setEndDate(new Date(data.end_date));
       if (data.application_deadline) setApplicationDeadline(new Date(data.application_deadline));
@@ -162,6 +166,7 @@ export default function CreateHackathon() {
         rules: data.rules || null,
         min_team_size: data.min_team_size,
         max_team_size: data.max_team_size,
+        banner_url: bannerUrl || null,
         start_date: startDate?.toISOString().split('T')[0] || null,
         end_date: endDate?.toISOString().split('T')[0] || null,
         application_deadline: applicationDeadline?.toISOString().split('T')[0] || null,
@@ -412,6 +417,8 @@ export default function CreateHackathon() {
                       className="bg-muted/50 border-border resize-none"
                     />
                   </div>
+
+                  <BannerSelector value={bannerUrl} onChange={setBannerUrl} />
                 </div>
               )}
 

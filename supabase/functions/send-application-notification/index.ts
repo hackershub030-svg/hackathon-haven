@@ -29,13 +29,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const token = authHeader.replace("Bearer ", "");
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    // Validate the JWT by passing token explicitly
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user) {
+      console.error("JWT validation failed:", userError);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }

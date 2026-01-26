@@ -20,6 +20,7 @@ import {
   Mail,
   Star,
   Image,
+  Presentation,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +39,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { JudgingTab } from '@/components/organizer/JudgingTab';
+import { PresentationViewModal } from '@/components/hackathon/PresentationViewModal';
 
 type ApplicationStatus = 'draft' | 'submitted' | 'accepted' | 'rejected' | 'waitlisted';
 type HackathonStatus = 'draft' | 'live' | 'ended';
@@ -57,7 +59,7 @@ export default function OrganizerDashboard() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('applications');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-
+  const [selectedPresentation, setSelectedPresentation] = useState<{url: string; teamName: string} | null>(null);
   const { data: hackathon, isLoading: hackathonLoading } = useQuery({
     queryKey: ['hackathon', id],
     queryFn: async () => {
@@ -274,6 +276,7 @@ export default function OrganizerDashboard() {
   }
 
   return (
+    <>
     <Layout>
       <div className="min-h-screen py-8">
         <div className="container mx-auto px-4">
@@ -512,22 +515,38 @@ export default function OrganizerDashboard() {
                               </div>
                             </div>
 
-                            {app.application_data && (
+                            {(app.application_data || app.presentation_url) && (
                               <div className="mt-4 pt-4 border-t border-border">
                                 <div className="grid md:grid-cols-2 gap-4 text-sm">
-                                  {app.application_data.project_idea && (
+                                  {app.application_data?.project_idea && (
                                     <div>
                                       <p className="font-medium text-muted-foreground mb-1">Project Idea</p>
                                       <p>{app.application_data.project_idea}</p>
                                     </div>
                                   )}
-                                  {app.application_data.why_join && (
+                                  {app.application_data?.why_join && (
                                     <div>
                                       <p className="font-medium text-muted-foreground mb-1">Why Join</p>
                                       <p>{app.application_data.why_join}</p>
                                     </div>
                                   )}
                                 </div>
+                                {app.presentation_url && (
+                                  <div className="mt-4">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setSelectedPresentation({
+                                        url: app.presentation_url,
+                                        teamName: app.team?.team_name || 'Team'
+                                      })}
+                                      className="gap-2"
+                                    >
+                                      <Presentation className="w-4 h-4" />
+                                      View Presentation
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -664,5 +683,13 @@ export default function OrganizerDashboard() {
         </div>
       </div>
     </Layout>
+
+      <PresentationViewModal
+        open={!!selectedPresentation}
+        onOpenChange={(open) => !open && setSelectedPresentation(null)}
+        presentationUrl={selectedPresentation?.url || ''}
+        teamName={selectedPresentation?.teamName || ''}
+      />
+    </>
   );
 }

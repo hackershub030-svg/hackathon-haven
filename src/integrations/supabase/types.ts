@@ -20,6 +20,7 @@ export type Database = {
           created_at: string | null
           hackathon_id: string
           id: string
+          presentation_url: string | null
           status: Database["public"]["Enums"]["application_status"] | null
           submitted_at: string | null
           team_id: string | null
@@ -30,6 +31,7 @@ export type Database = {
           created_at?: string | null
           hackathon_id: string
           id?: string
+          presentation_url?: string | null
           status?: Database["public"]["Enums"]["application_status"] | null
           submitted_at?: string | null
           team_id?: string | null
@@ -40,6 +42,7 @@ export type Database = {
           created_at?: string | null
           hackathon_id?: string
           id?: string
+          presentation_url?: string | null
           status?: Database["public"]["Enums"]["application_status"] | null
           submitted_at?: string | null
           team_id?: string | null

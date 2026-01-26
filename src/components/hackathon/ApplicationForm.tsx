@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Trash2, Users, Loader2, UserPlus, Crown, ArrowLeft } from 'lucide-react';
 import { TeamStatusCard } from './TeamStatusCard';
+import { PresentationUpload } from './PresentationUpload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,7 +47,7 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<FormMode>('select');
   const [joinModalOpen, setJoinModalOpen] = useState(false);
-
+  const [presentationUrl, setPresentationUrl] = useState<string>('');
   // Check if user is already a member of a team for this hackathon
   const { data: existingTeamMembership, isLoading: isLoadingMembership } = useQuery({
     queryKey: ['user-team-membership-apply', hackathonId, user?.id],
@@ -142,6 +143,7 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
             project_idea: data.projectIdea,
             why_join: data.whyJoin,
           },
+          presentation_url: presentationUrl || null,
         });
 
       if (appError) throw appError;
@@ -383,6 +385,11 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
             <p className="text-sm text-destructive">{errors.whyJoin.message}</p>
           )}
         </div>
+
+        <PresentationUpload 
+          onUploadComplete={setPresentationUrl}
+          existingUrl={presentationUrl}
+        />
 
         <Button
           type="submit"

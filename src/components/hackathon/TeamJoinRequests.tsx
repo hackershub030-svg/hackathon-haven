@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,25 +25,61 @@ export function TeamJoinRequests({ teamId, hackathonId }: TeamJoinRequestsProps)
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch pending requests
-  const { data: pendingRequests, isLoading } = useQuery({
+  // Fetch pending requests - without profile join
+  const { data: pendingRequestsRaw, isLoading } = useQuery({
     queryKey: ['pending-join-requests', teamId],
     queryFn: async () => {
+      console.log('Fetching pending requests for team:', teamId);
       const { data, error } = await supabase
         .from('team_members')
-        .select(`
-          *,
-          profile:profiles(full_name, avatar_url, email)
-        `)
+        .select('*')
         .eq('team_id', teamId)
         .eq('join_status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching pending requests:', error);
+        throw error;
+      }
+      console.log('Pending requests found:', data);
       return data;
     },
     enabled: !!teamId,
   });
+
+  // Fetch profiles separately for pending members
+  const { data: profiles } = useQuery({
+    queryKey: ['pending-member-profiles', pendingRequestsRaw?.map(m => m.user_id).filter(Boolean)],
+    queryFn: async () => {
+      const userIds = pendingRequestsRaw?.map(m => m.user_id).filter(Boolean) || [];
+      if (userIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, avatar_url, email')
+        .in('user_id', userIds);
+      
+      if (error) {
+        console.error('Error fetching profiles:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!pendingRequestsRaw && pendingRequestsRaw.length > 0,
+  });
+
+  // Merge pending requests with profiles
+  const pendingRequests = useMemo(() => {
+    if (!pendingRequestsRaw) return [];
+    
+    return pendingRequestsRaw.map(request => {
+      const profile = profiles?.find(p => p.user_id === request.user_id);
+      return {
+        ...request,
+        profile: profile || null,
+      };
+    });
+  }, [pendingRequestsRaw, profiles]);
 
   // Subscribe to real-time updates for new requests
   useEffect(() => {

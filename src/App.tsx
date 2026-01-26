@@ -8,8 +8,12 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Hackathons from "./pages/Hackathons";
+import HackathonDetail from "./pages/HackathonDetail";
 import Dashboard from "./pages/Dashboard";
 import CreateHackathon from "./pages/CreateHackathon";
+import Profile from "./pages/Profile";
+import ProjectSubmission from "./pages/ProjectSubmission";
+import OrganizerDashboard from "./pages/OrganizerDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,11 +29,20 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/hackathons" element={<Hackathons />} />
+            <Route path="/hackathon/:id" element={<HackathonDetail />} />
             <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               }
             />
@@ -46,6 +59,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CreateHackathon />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/organizer/:id"
+              element={
+                <ProtectedRoute>
+                  <OrganizerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/project/:hackathonId/:teamId"
+              element={
+                <ProtectedRoute>
+                  <ProjectSubmission />
                 </ProtectedRoute>
               }
             />

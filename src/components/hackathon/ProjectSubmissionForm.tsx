@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { z } from 'zod';
@@ -13,6 +13,8 @@ import {
   Github,
   ExternalLink,
   Play,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +30,7 @@ import {
 } from '@/components/ui/form';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useScreenshotUpload } from '@/hooks/useScreenshotUpload';
 import { supabase } from '@/integrations/supabase/client';
 
 const projectSchema = z.object({
@@ -51,7 +54,10 @@ export function ProjectSubmissionForm({ hackathonId, teamId }: ProjectSubmission
   const queryClient = useQueryClient();
   const [techInput, setTechInput] = useState('');
   const [techStack, setTechStack] = useState<string[]>([]);
+  const [screenshots, setScreenshots] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadScreenshots, deleteScreenshot, isUploading } = useScreenshotUpload();
 
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectSchema),
@@ -92,8 +98,29 @@ export function ProjectSubmissionForm({ hackathonId, teamId }: ProjectSubmission
         video_url: existingProject.video_url || '',
       });
       setTechStack(existingProject.tech_stack || []);
+      setScreenshots(existingProject.screenshots || []);
     }
   }, [existingProject, form]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const uploadedUrls = await uploadScreenshots(Array.from(files));
+    if (uploadedUrls.length > 0) {
+      setScreenshots(prev => [...prev, ...uploadedUrls]);
+    }
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveScreenshot = async (url: string) => {
+    await deleteScreenshot(url);
+    setScreenshots(prev => prev.filter(s => s !== url));
+  };
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: ProjectFormData) => {
@@ -107,6 +134,7 @@ export function ProjectSubmissionForm({ hackathonId, teamId }: ProjectSubmission
         demo_url: data.demo_url || null,
         video_url: data.video_url || null,
         tech_stack: techStack,
+        screenshots: screenshots,
         submitted: true,
       });
 
@@ -134,6 +162,7 @@ export function ProjectSubmissionForm({ hackathonId, teamId }: ProjectSubmission
           demo_url: data.demo_url || null,
           video_url: data.video_url || null,
           tech_stack: techStack,
+          screenshots: screenshots,
           submitted: true,
         })
         .eq('id', existingProject!.id);
@@ -202,6 +231,20 @@ export function ProjectSubmissionForm({ hackathonId, teamId }: ProjectSubmission
 
         {existingProject.description && (
           <p className="text-muted-foreground mb-4">{existingProject.description}</p>
+        )}
+
+        {existingProject.screenshots && existingProject.screenshots.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
+            {existingProject.screenshots.map((url: string, index: number) => (
+              <div key={url} className="aspect-video rounded-md overflow-hidden border border-border">
+                <img
+                  src={url}
+                  alt={`Screenshot ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
         )}
 
         {existingProject.tech_stack && existingProject.tech_stack.length > 0 && (
@@ -333,6 +376,65 @@ export function ProjectSubmissionForm({ hackathonId, teamId }: ProjectSubmission
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Screenshots Upload */}
+          <div className="space-y-2">
+            <FormLabel>Screenshots</FormLabel>
+            <div className="space-y-3">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                multiple
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="w-full"
+              >
+                {isUploading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
+                {isUploading ? 'Uploading...' : 'Upload Screenshots'}
+              </Button>
+              
+              {screenshots.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {screenshots.map((url, index) => (
+                    <div key={url} className="relative group aspect-video rounded-md overflow-hidden border border-border">
+                      <img
+                        src={url}
+                        alt={`Screenshot ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveScreenshot(url)}
+                        className="absolute top-1 right-1 p-1 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {screenshots.length === 0 && (
+                <div className="border border-dashed border-border rounded-md p-4 text-center">
+                  <ImageIcon className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    No screenshots uploaded yet. Add some to showcase your project!
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           <FormField

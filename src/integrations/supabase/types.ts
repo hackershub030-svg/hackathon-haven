@@ -324,6 +324,7 @@ export type Database = {
           email: string | null
           first_name: string | null
           full_name: string | null
+          gender: string | null
           github_url: string | null
           id: string
           is_public: boolean | null
@@ -349,6 +350,7 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           full_name?: string | null
+          gender?: string | null
           github_url?: string | null
           id?: string
           is_public?: boolean | null
@@ -374,6 +376,7 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           full_name?: string | null
+          gender?: string | null
           github_url?: string | null
           id?: string
           is_public?: boolean | null
@@ -662,6 +665,7 @@ export type Database = {
           hackathon_id: string
           id: string
           team_name: string
+          team_unique_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -669,6 +673,7 @@ export type Database = {
           hackathon_id: string
           id?: string
           team_name: string
+          team_unique_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -676,6 +681,7 @@ export type Database = {
           hackathon_id?: string
           id?: string
           team_name?: string
+          team_unique_id?: string | null
         }
         Relationships: [
           {
@@ -710,6 +716,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_team_unique_id: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

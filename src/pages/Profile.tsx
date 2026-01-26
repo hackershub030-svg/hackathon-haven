@@ -41,12 +41,14 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { CountrySelect } from '@/components/profile/CountrySelect';
 import { ProfileCompleteness } from '@/components/profile/ProfileCompleteness';
+import { GenderSelect } from '@/components/profile/GenderSelect';
 
 const profileSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
   username: z.string().min(3, 'Username must be at least 3 characters').optional().or(z.literal('')),
   age: z.coerce.number().min(13, 'Must be at least 13').max(120, 'Invalid age').optional().or(z.literal('')),
+  gender: z.string().optional(),
   phone_number: z.string().optional(),
   college: z.string().optional(),
   country: z.string().optional(),
@@ -89,6 +91,7 @@ export default function Profile() {
   const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [levelOfStudy, setLevelOfStudy] = useState(profile?.level_of_study || '');
   const [country, setCountry] = useState(profile?.country || '');
+  const [gender, setGender] = useState(profile?.gender || '');
 
   const {
     register,
@@ -103,6 +106,7 @@ export default function Profile() {
       last_name: profile?.last_name || '',
       username: profile?.username || '',
       age: profile?.age || '',
+      gender: profile?.gender || '',
       phone_number: profile?.phone_number || '',
       college: profile?.college || '',
       country: profile?.country || '',
@@ -161,6 +165,7 @@ export default function Profile() {
           full_name: `${data.first_name} ${data.last_name}`.trim(),
           username: data.username || null,
           age: data.age || null,
+          gender: gender || null,
           phone_number: data.phone_number || null,
           college: data.college || null,
           country: country || null,
@@ -310,11 +315,13 @@ export default function Profile() {
     setSkills(profile?.skills || []);
     setLevelOfStudy(profile?.level_of_study || '');
     setCountry(profile?.country || '');
+    setGender(profile?.gender || '');
     reset({
       first_name: profile?.first_name || '',
       last_name: profile?.last_name || '',
       username: profile?.username || '',
       age: profile?.age || '',
+      gender: profile?.gender || '',
       phone_number: profile?.phone_number || '',
       college: profile?.college || '',
       country: profile?.country || '',
@@ -460,6 +467,16 @@ export default function Profile() {
                           {errors.age && (
                             <p className="text-sm text-destructive">{errors.age.message}</p>
                           )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Gender</Label>
+                          <GenderSelect
+                            value={gender}
+                            onValueChange={(value) => {
+                              setGender(value);
+                              setValue('gender', value);
+                            }}
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="phone_number">Phone Number</Label>

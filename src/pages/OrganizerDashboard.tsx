@@ -41,6 +41,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { JudgingTab } from '@/components/organizer/JudgingTab';
 import { PresentationViewModal } from '@/components/hackathon/PresentationViewModal';
+import { ApplicationDetailModal } from '@/components/organizer/ApplicationDetailModal';
 
 type ApplicationStatus = 'draft' | 'submitted' | 'accepted' | 'rejected' | 'waitlisted';
 type HackathonStatus = 'draft' | 'live' | 'ended';
@@ -61,6 +62,7 @@ export default function OrganizerDashboard() {
   const [activeTab, setActiveTab] = useState('applications');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedPresentation, setSelectedPresentation] = useState<{url: string; teamName: string} | null>(null);
+  const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const { data: hackathon, isLoading: hackathonLoading } = useQuery({
     queryKey: ['hackathon', id],
     queryFn: async () => {
@@ -506,7 +508,8 @@ export default function OrganizerDashboard() {
                         return (
                           <div
                             key={app.id}
-                            className="p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                            className="p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => setSelectedApplication(app)}
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-4">
@@ -519,6 +522,11 @@ export default function OrganizerDashboard() {
                                       <StatusIcon className="w-3 h-3 mr-1" />
                                       {status.label}
                                     </Badge>
+                                    {app.application_data?.domain && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {app.application_data.domain}
+                                      </Badge>
+                                    )}
                                   </div>
                                   <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
                                     <Mail className="w-3 h-3" />
@@ -529,7 +537,7 @@ export default function OrganizerDashboard() {
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                 {app.status !== 'accepted' && (
                                   <Button
                                     size="sm"
@@ -541,6 +549,20 @@ export default function OrganizerDashboard() {
                                   >
                                     <CheckCircle2 className="w-4 h-4 mr-1" />
                                     Accept
+                                  </Button>
+                                )}
+                                {app.status !== 'waitlisted' && app.status !== 'accepted' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      updateApplicationMutation.mutate({ appId: app.id, status: 'waitlisted' })
+                                    }
+                                    disabled={updateApplicationMutation.isPending}
+                                    className="text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/10"
+                                  >
+                                    <Clock className="w-4 h-4 mr-1" />
+                                    Waitlist
                                   </Button>
                                 )}
                                 {app.status !== 'rejected' && (
@@ -734,6 +756,20 @@ export default function OrganizerDashboard() {
         onOpenChange={(open) => !open && setSelectedPresentation(null)}
         presentationUrl={selectedPresentation?.url || ''}
         teamName={selectedPresentation?.teamName || ''}
+      />
+
+      <ApplicationDetailModal
+        open={!!selectedApplication}
+        onOpenChange={(open) => !open && setSelectedApplication(null)}
+        application={selectedApplication}
+        onViewPresentation={() => {
+          if (selectedApplication?.presentation_url) {
+            setSelectedPresentation({
+              url: selectedApplication.presentation_url,
+              teamName: selectedApplication.team?.team_name || 'Team'
+            });
+          }
+        }}
       />
     </>
   );

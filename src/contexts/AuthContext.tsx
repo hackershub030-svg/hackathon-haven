@@ -17,6 +17,7 @@ interface Profile {
   location: string | null;
   is_public: boolean;
   age: number | null;
+  gender: string | null;
   phone_number: string | null;
   college: string | null;
   country: string | null;

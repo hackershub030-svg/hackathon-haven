@@ -13,6 +13,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,10 +29,28 @@ const applicationSchema = z.object({
   teamName: z.string().min(2, 'Team name must be at least 2 characters'),
   projectIdea: z.string().min(10, 'Please describe your project idea'),
   whyJoin: z.string().min(10, 'Tell us why you want to participate'),
+  domain: z.string().min(1, 'Please select a domain'),
   teamMembers: z.array(z.object({
     email: z.string().email('Invalid email address'),
   })).optional(),
 });
+
+const DOMAIN_OPTIONS = [
+  'Web Development',
+  'Mobile Development',
+  'AI/Machine Learning',
+  'Blockchain/Web3',
+  'IoT/Hardware',
+  'Game Development',
+  'Cybersecurity',
+  'Data Science',
+  'Cloud Computing',
+  'AR/VR',
+  'FinTech',
+  'HealthTech',
+  'EdTech',
+  'Other',
+];
 
 type ApplicationFormData = z.infer<typeof applicationSchema>;
 
@@ -90,12 +115,15 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
     control,
     handleSubmit,
     formState: { errors },
+    setValue,
+    watch,
   } = useForm<ApplicationFormData>({
     resolver: zodResolver(applicationSchema),
     defaultValues: {
       teamName: '',
       projectIdea: '',
       whyJoin: '',
+      domain: '',
       teamMembers: [],
     },
   });
@@ -159,6 +187,7 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
           application_data: {
             project_idea: data.projectIdea,
             why_join: data.whyJoin,
+            domain: data.domain,
           },
           presentation_url: presentationUrl || null,
         });
@@ -422,6 +451,28 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
               <UserPlus className="w-4 h-4 mr-2" />
               Invite Team Member
             </Button>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label>Domain *</Label>
+          <Select
+            value={watch('domain')}
+            onValueChange={(value) => setValue('domain', value)}
+          >
+            <SelectTrigger className="bg-muted/50 border-border">
+              <SelectValue placeholder="Select your project domain" />
+            </SelectTrigger>
+            <SelectContent>
+              {DOMAIN_OPTIONS.map((domain) => (
+                <SelectItem key={domain} value={domain}>
+                  {domain}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.domain && (
+            <p className="text-sm text-destructive">{errors.domain.message}</p>
           )}
         </div>
 

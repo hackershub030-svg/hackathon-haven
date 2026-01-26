@@ -30,6 +30,7 @@ import { ProjectGallerySection } from '@/components/hackathon/ProjectGallerySect
 import { ProjectSubmissionForm } from '@/components/hackathon/ProjectSubmissionForm';
 import { DeadlineCountdown } from '@/components/hackathon/DeadlineCountdown';
 import { ParticipantsList } from '@/components/hackathon/ParticipantsList';
+import { TeamFinder } from '@/components/hackathon/TeamFinder';
 
 const modeIcons = {
   online: Wifi,
@@ -418,6 +419,12 @@ export default function HackathonDetail() {
                       <ParticipantsList hackathonId={id!} />
                     </motion.div>
                   </TabsContent>
+
+                  {user && isAccepted && (
+                    <TabsContent value="find-team" className="mt-0">
+                      <TeamFinder hackathonId={id!} />
+                    </TabsContent>
+                  )}
 
                   {isGalleryPublic && (
                     <TabsContent value="gallery" className="mt-0">

@@ -54,7 +54,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Fetch application first
     const { data: application, error: appError } = await supabase
       .from("applications")
-      .select("id, user_id, hackathon_id")
+      .select("id, user_id, hackathon_id, team_id")
       .eq("id", applicationId)
       .maybeSingle();
 
@@ -80,6 +80,24 @@ const handler = async (req: Request): Promise<Response> => {
     const isAccepted = status === "accepted";
     const isWaitlisted = status === "waitlisted";
 
+    // Generate team unique ID if accepted and has team
+    let teamUniqueId = null;
+    if (isAccepted && application.team_id) {
+      // Generate unique team ID
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let uniqueId = '';
+      for (let i = 0; i < 8; i++) {
+        uniqueId += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      teamUniqueId = uniqueId;
+
+      // Update team with unique ID
+      await supabaseAdmin
+        .from("teams")
+        .update({ team_unique_id: teamUniqueId })
+        .eq("id", application.team_id);
+    }
+
     // Create in-app notification using the same admin client
     const notificationTitle = isAccepted 
       ? "Application Accepted! 🎉" 
@@ -88,7 +106,7 @@ const handler = async (req: Request): Promise<Response> => {
       : "Application Update";
     
     const notificationMessage = isAccepted
-      ? `Your application to ${hackathonTitle} has been accepted!`
+      ? `Your application to ${hackathonTitle} has been accepted! Team ID: ${teamUniqueId}`
       : isWaitlisted
       ? `You've been added to the waitlist for ${hackathonTitle}. We'll notify you if a spot opens up.`
       : `Your application to ${hackathonTitle} was not selected.`;
@@ -102,6 +120,7 @@ const handler = async (req: Request): Promise<Response> => {
         hackathon_id: application.hackathon_id,
         application_id: applicationId,
         status,
+        team_unique_id: teamUniqueId,
       },
     });
 
@@ -116,6 +135,8 @@ const handler = async (req: Request): Promise<Response> => {
       let htmlContent: string;
 
       if (isAccepted) {
+        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({ teamId: teamUniqueId, hackathon: hackathonTitle }))}`;
+        
         subject = `🎉 Congratulations! You've been accepted to ${hackathonTitle}`;
         htmlContent = `
           <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -123,10 +144,18 @@ const handler = async (req: Request): Promise<Response> => {
             <p style="font-size: 16px; color: #333; line-height: 1.6;">
               Great news! Your application to <strong>${hackathonTitle}</strong> has been <span style="color: #22c55e; font-weight: bold;">accepted</span>!
             </p>
+            <div style="background: #f0f9ff; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
+              <p style="font-size: 14px; color: #666; margin-bottom: 10px;">Your Team ID</p>
+              <p style="font-size: 24px; font-weight: bold; color: #00d4ff; letter-spacing: 3px;">${teamUniqueId}</p>
+            </div>
+            <div style="text-align: center; margin: 20px 0;">
+              <p style="font-size: 14px; color: #666; margin-bottom: 10px;">Show this QR code at check-in:</p>
+              <img src="${qrCodeUrl}" alt="Team QR Code" style="border-radius: 10px;" />
+            </div>
             <p style="font-size: 16px; color: #333; line-height: 1.6;">
-              You can now form or join a team and start preparing for the hackathon. Log in to your dashboard to see next steps.
+              Log in to your dashboard to see next steps.
             </p>
-            <div style="margin-top: 30px;">
+            <div style="margin-top: 30px; text-align: center;">
               <a href="${siteUrl}/dashboard" 
                  style="background: linear-gradient(135deg, #00d4ff, #8b5cf6); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
                 Go to Dashboard

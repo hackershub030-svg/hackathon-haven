@@ -1,25 +1,28 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { Loader2, UserMinus } from 'lucide-react';
 
 interface RemoveMemberDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   memberId: string;
   memberName: string;
+  memberEmail: string;
   teamId: string;
+  hackathonId: string;
 }
 
 export function RemoveMemberDialog({
@@ -27,13 +30,36 @@ export function RemoveMemberDialog({
   onOpenChange,
   memberId,
   memberName,
+  memberEmail,
   teamId,
+  hackathonId,
 }: RemoveMemberDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [reason, setReason] = useState('');
 
   const removeMutation = useMutation({
     mutationFn: async () => {
+      // Fetch member and team info before deletion
+      const { data: member } = await supabase
+        .from('team_members')
+        .select('user_id, email')
+        .eq('id', memberId)
+        .single();
+
+      const { data: team } = await supabase
+        .from('teams')
+        .select('team_name')
+        .eq('id', teamId)
+        .single();
+
+      const { data: hackathon } = await supabase
+        .from('hackathons')
+        .select('title')
+        .eq('id', hackathonId)
+        .single();
+
+      // Delete the member
       const { error } = await supabase
         .from('team_members')
         .delete()
@@ -41,21 +67,34 @@ export function RemoveMemberDialog({
 
       if (error) throw error;
 
-      // Fetch the member to send notification
-      const { data: member } = await supabase
-        .from('team_members')
-        .select('user_id')
-        .eq('id', memberId)
-        .single();
-
+      // Create in-app notification
       if (member?.user_id) {
         await supabase.from('notifications').insert({
           user_id: member.user_id,
           type: 'team_invite',
           title: 'Removed from Team',
-          message: `You have been removed from the team.`,
-          metadata: { team_id: teamId, removed: true },
+          message: reason 
+            ? `You have been removed from the team. Reason: ${reason}`
+            : `You have been removed from the team.`,
+          metadata: { team_id: teamId, removed: true, reason },
         });
+      }
+
+      // Send email notification
+      try {
+        await supabase.functions.invoke('send-team-request-notification', {
+          body: {
+            recipientEmail: member?.email || memberEmail,
+            recipientName: memberName,
+            teamName: team?.team_name || 'Unknown Team',
+            hackathonName: hackathon?.title || 'Unknown Hackathon',
+            removed: true,
+            removalReason: reason || undefined,
+          },
+        });
+      } catch (emailError) {
+        console.error('Failed to send removal email:', emailError);
+        // Don't fail if email fails
       }
     },
     onSuccess: () => {
@@ -64,6 +103,8 @@ export function RemoveMemberDialog({
         description: `${memberName} has been removed from the team.`,
       });
       queryClient.invalidateQueries({ queryKey: ['team-members', teamId] });
+      queryClient.invalidateQueries({ queryKey: ['team-all-members', teamId] });
+      setReason('');
       onOpenChange(false);
     },
     onError: (error: any) => {
@@ -76,23 +117,41 @@ export function RemoveMemberDialog({
   });
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Remove Team Member</AlertDialogTitle>
-          <AlertDialogDescription>
-            Are you sure you want to remove <strong>{memberName}</strong> from the team?
-            This action cannot be undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault();
-              removeMutation.mutate();
-            }}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <UserMinus className="w-5 h-5 text-destructive" />
+            Remove Team Member
+          </DialogTitle>
+          <DialogDescription>
+            Remove <strong>{memberName}</strong> from the team. They will be notified via email.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="reason">Reason (optional)</Label>
+            <Textarea
+              id="reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Provide a reason for the removal (will be included in the notification)..."
+              className="min-h-[80px]"
+            />
+            <p className="text-xs text-muted-foreground">
+              This message will be included in the email sent to the member.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => removeMutation.mutate()}
             disabled={removeMutation.isPending}
           >
             {removeMutation.isPending ? (
@@ -103,9 +162,9 @@ export function RemoveMemberDialog({
             ) : (
               'Remove Member'
             )}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

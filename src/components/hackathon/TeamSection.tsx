@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Users, Mail, CheckCircle2, Clock, Crown, Share2, UserMinus } from 'lucide-react';
+import { Users, Mail, CheckCircle2, Clock, Crown, Share2, UserMinus, UsersRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,6 +10,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { TeamInviteModal } from './TeamInviteModal';
 import { TeamJoinRequests } from './TeamJoinRequests';
 import { RemoveMemberDialog } from './RemoveMemberDialog';
+import { BulkInviteModal } from './BulkInviteModal';
+import { TeamDashboard } from './TeamDashboard';
 
 interface TeamSectionProps {
   teamId: string;
@@ -23,7 +25,8 @@ interface TeamSectionProps {
 export function TeamSection({ teamId, hackathon, hackathonId }: TeamSectionProps) {
   const { user } = useAuth();
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
-  const [removeMember, setRemoveMember] = useState<{ id: string; name: string } | null>(null);
+  const [bulkInviteOpen, setBulkInviteOpen] = useState(false);
+  const [removeMember, setRemoveMember] = useState<{ id: string; name: string; email: string } | null>(null);
 
   const { data: team } = useQuery({
     queryKey: ['team', teamId],
@@ -88,14 +91,24 @@ export function TeamSection({ teamId, hackathon, hackathonId }: TeamSectionProps
               {currentMemberCount} / {maxTeamSize} members
             </Badge>
             {isTeamLeader && canInviteMore && (
-              <Button
-                onClick={() => setInviteModalOpen(true)}
-                variant="outline"
-                className="gap-2"
-              >
-                <Share2 className="w-4 h-4" />
-                Invite Members
-              </Button>
+              <>
+                <Button
+                  onClick={() => setInviteModalOpen(true)}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <Share2 className="w-4 h-4" />
+                  Invite
+                </Button>
+                <Button
+                  onClick={() => setBulkInviteOpen(true)}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <UsersRound className="w-4 h-4" />
+                  Bulk Invite
+                </Button>
+              </>
             )}
             {isTeamLeader && !canInviteMore && (
               <Badge variant="outline" className="text-muted-foreground">
@@ -107,6 +120,9 @@ export function TeamSection({ teamId, hackathon, hackathonId }: TeamSectionProps
 
         {/* Join Requests for Team Leaders */}
         {isTeamLeader && <TeamJoinRequests teamId={teamId} hackathonId={hackathonId} />}
+
+        {/* Team Dashboard */}
+        {isTeamLeader && <TeamDashboard teamId={teamId} hackathonId={hackathonId} />}
 
         <div className="space-y-4">
           {members?.map((member: any) => (
@@ -165,6 +181,7 @@ export function TeamSection({ teamId, hackathon, hackathonId }: TeamSectionProps
                     onClick={() => setRemoveMember({
                       id: member.id,
                       name: member.profile?.full_name || member.email.split('@')[0],
+                      email: member.email,
                     })}
                   >
                     <UserMinus className="w-4 h-4" />
@@ -189,6 +206,19 @@ export function TeamSection({ teamId, hackathon, hackathonId }: TeamSectionProps
         />
       )}
 
+      {/* Bulk Invite Modal */}
+      {team && (
+        <BulkInviteModal
+          open={bulkInviteOpen}
+          onOpenChange={setBulkInviteOpen}
+          teamId={teamId}
+          hackathonId={hackathonId}
+          teamName={team.team_name}
+          maxTeamSize={maxTeamSize}
+          currentMemberCount={currentMemberCount}
+        />
+      )}
+
       {/* Remove Member Dialog */}
       {removeMember && (
         <RemoveMemberDialog
@@ -196,7 +226,9 @@ export function TeamSection({ teamId, hackathon, hackathonId }: TeamSectionProps
           onOpenChange={(open) => !open && setRemoveMember(null)}
           memberId={removeMember.id}
           memberName={removeMember.name}
+          memberEmail={removeMember.email}
           teamId={teamId}
+          hackathonId={hackathonId}
         />
       )}
     </>

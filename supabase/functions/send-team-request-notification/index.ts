@@ -14,7 +14,9 @@ interface NotificationRequest {
   recipientName: string;
   teamName: string;
   hackathonName: string;
-  approved: boolean;
+  approved?: boolean;
+  removed?: boolean;
+  removalReason?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -24,19 +26,51 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { recipientEmail, recipientName, teamName, hackathonName, approved }: NotificationRequest = await req.json();
+    const { 
+      recipientEmail, 
+      recipientName, 
+      teamName, 
+      hackathonName, 
+      approved, 
+      removed,
+      removalReason 
+    }: NotificationRequest = await req.json();
 
     // Validate required fields
     if (!recipientEmail || !teamName || !hackathonName) {
       throw new Error("Missing required fields");
     }
 
-    const subject = approved 
-      ? `🎉 Your team join request has been approved!`
-      : `Team join request update`;
-    
-    const html = approved 
-      ? `
+    let subject: string;
+    let html: string;
+
+    if (removed) {
+      // Member removal email
+      subject = `You've been removed from team "${teamName}"`;
+      html = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #f59e0b;">Team Membership Update</h1>
+          <p>Hi ${recipientName || 'there'},</p>
+          <p>We wanted to let you know that you've been removed from <strong>${teamName}</strong> for <strong>${hackathonName}</strong>.</p>
+          ${removalReason ? `
+            <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
+              <p style="margin: 0; font-style: italic;">"${removalReason}"</p>
+            </div>
+          ` : ''}
+          <p>This doesn't have to be the end of your hackathon journey! You can still:</p>
+          <ul>
+            <li>Create your own team and invite others</li>
+            <li>Join another team with an invite code</li>
+            <li>Participate as a solo hacker (if allowed)</li>
+          </ul>
+          <p>We wish you the best of luck!</p>
+          <p style="color: #888; font-size: 12px; margin-top: 30px;">This is an automated message. Please do not reply directly to this email.</p>
+        </div>
+      `;
+    } else if (approved) {
+      // Approval email
+      subject = `🎉 Your team join request has been approved!`;
+      html = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #10b981;">Welcome to the Team! 🎉</h1>
           <p>Hi ${recipientName || 'there'},</p>
@@ -50,8 +84,11 @@ const handler = async (req: Request): Promise<Response> => {
           <p>Good luck with the hackathon!</p>
           <p style="color: #888; font-size: 12px; margin-top: 30px;">This is an automated message. Please do not reply directly to this email.</p>
         </div>
-      `
-      : `
+      `;
+    } else {
+      // Rejection email
+      subject = `Team join request update`;
+      html = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #6366f1;">Team Request Update</h1>
           <p>Hi ${recipientName || 'there'},</p>
@@ -66,6 +103,7 @@ const handler = async (req: Request): Promise<Response> => {
           <p style="color: #888; font-size: 12px; margin-top: 30px;">This is an automated message. Please do not reply directly to this email.</p>
         </div>
       `;
+    }
 
     const emailResponse = await resend.emails.send({
       from: "Hackathon <noreply@lovable.dev>",
@@ -74,7 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
       html,
     });
 
-    console.log("Team request notification email sent successfully:", emailResponse);
+    console.log("Team notification email sent successfully:", emailResponse);
 
     return new Response(JSON.stringify(emailResponse), {
       status: 200,

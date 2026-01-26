@@ -31,6 +31,8 @@ interface TeamInviteModalProps {
   teamId: string;
   hackathonId: string;
   teamName: string;
+  maxTeamSize?: number;
+  currentMemberCount?: number;
 }
 
 function generateInviteCode(): string {
@@ -48,6 +50,8 @@ export function TeamInviteModal({
   teamId,
   hackathonId,
   teamName,
+  maxTeamSize = 4,
+  currentMemberCount = 1,
 }: TeamInviteModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -164,6 +168,14 @@ export function TeamInviteModal({
             Share this code with teammates to join "{teamName}"
           </DialogDescription>
         </DialogHeader>
+
+        {/* Team Size Info */}
+        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+          <span className="text-sm text-muted-foreground">Team capacity</span>
+          <Badge variant={currentMemberCount >= maxTeamSize ? 'destructive' : 'secondary'}>
+            {currentMemberCount} / {maxTeamSize} members
+          </Badge>
+        </div>
 
         <div className="space-y-6">
           {/* Generate Code Button or Display Code */}

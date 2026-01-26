@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRateLimit } from '@/hooks/useRateLimit';
 import {
   Users,
   Loader2,
@@ -23,6 +24,7 @@ import {
   Crown,
   Camera,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface JoinTeamModalProps {
@@ -62,6 +64,12 @@ export function JoinTeamModal({
   const [isValidating, setIsValidating] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  
+  // Rate limiting: 5 attempts per 60 seconds
+  const { checkRateLimit, isRateLimited, remainingAttempts } = useRateLimit({
+    maxAttempts: 5,
+    windowMs: 60000,
+  });
 
   useEffect(() => {
     if (initialCode) {
@@ -79,6 +87,16 @@ export function JoinTeamModal({
   const validateCode = async (inviteCode: string) => {
     if (inviteCode.length !== 8) {
       setTeamInfo(null);
+      return;
+    }
+
+    // Check rate limit before validating
+    if (!checkRateLimit()) {
+      toast({
+        title: 'Too many attempts',
+        description: 'Please wait a moment before trying again.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -303,6 +321,14 @@ export function JoinTeamModal({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Rate Limit Warning */}
+          {isRateLimited && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive">
+              <AlertTriangle className="w-4 h-4" />
+              <span className="text-sm">Too many attempts. Please wait before trying again.</span>
+            </div>
+          )}
+
           {/* Code Input */}
           {!isScanning && (
             <div className="space-y-4">
@@ -312,6 +338,7 @@ export function JoinTeamModal({
                 placeholder="Enter invite code (e.g., A7K9Q2M8)"
                 className="text-center text-xl font-mono tracking-widest h-14"
                 maxLength={8}
+                disabled={isRateLimited}
               />
 
               <div className="flex gap-3">

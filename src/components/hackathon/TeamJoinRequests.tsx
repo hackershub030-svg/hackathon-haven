@@ -17,9 +17,10 @@ import {
 
 interface TeamJoinRequestsProps {
   teamId: string;
+  hackathonId: string;
 }
 
-export function TeamJoinRequests({ teamId }: TeamJoinRequestsProps) {
+export function TeamJoinRequests({ teamId, hackathonId }: TeamJoinRequestsProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -77,7 +78,12 @@ export function TeamJoinRequests({ teamId }: TeamJoinRequestsProps) {
 
   // Approve/reject mutation
   const respondMutation = useMutation({
-    mutationFn: async ({ memberId, approved }: { memberId: string; approved: boolean }) => {
+    mutationFn: async ({ memberId, approved, memberEmail, memberName }: { 
+      memberId: string; 
+      approved: boolean;
+      memberEmail: string;
+      memberName: string;
+    }) => {
       const { data: member, error: fetchError } = await supabase
         .from('team_members')
         .select('user_id')
@@ -85,6 +91,19 @@ export function TeamJoinRequests({ teamId }: TeamJoinRequestsProps) {
         .single();
 
       if (fetchError) throw fetchError;
+
+      // Get team and hackathon info for email
+      const { data: team } = await supabase
+        .from('teams')
+        .select('team_name')
+        .eq('id', teamId)
+        .single();
+
+      const { data: hackathon } = await supabase
+        .from('hackathons')
+        .select('title')
+        .eq('id', hackathonId)
+        .single();
 
       if (approved) {
         // Update member status to accepted
@@ -127,6 +146,22 @@ export function TeamJoinRequests({ teamId }: TeamJoinRequestsProps) {
             metadata: { team_id: teamId, approved: false },
           });
         }
+      }
+
+      // Send email notification
+      try {
+        await supabase.functions.invoke('send-team-request-notification', {
+          body: {
+            recipientEmail: memberEmail,
+            recipientName: memberName,
+            teamName: team?.team_name || 'Unknown Team',
+            hackathonName: hackathon?.title || 'Unknown Hackathon',
+            approved,
+          },
+        });
+      } catch (emailError) {
+        console.error('Failed to send email notification:', emailError);
+        // Don't fail the whole operation if email fails
       }
 
       return { approved };
@@ -200,16 +235,26 @@ export function TeamJoinRequests({ teamId }: TeamJoinRequestsProps) {
             <div className="flex gap-2">
               <Button
                 size="sm"
-                onClick={() => respondMutation.mutate({ memberId: request.id, approved: true })}
+                onClick={() => respondMutation.mutate({ 
+                  memberId: request.id, 
+                  approved: true,
+                  memberEmail: request.email,
+                  memberName: request.profile?.full_name || request.email.split('@')[0],
+                })}
                 disabled={respondMutation.isPending}
-                className="bg-green-500 hover:bg-green-600"
+                className="bg-emerald-600 hover:bg-emerald-700"
               >
                 <Check className="w-4 h-4" />
               </Button>
               <Button
                 size="sm"
                 variant="destructive"
-                onClick={() => respondMutation.mutate({ memberId: request.id, approved: false })}
+                onClick={() => respondMutation.mutate({ 
+                  memberId: request.id, 
+                  approved: false,
+                  memberEmail: request.email,
+                  memberName: request.profile?.full_name || request.email.split('@')[0],
+                })}
                 disabled={respondMutation.isPending}
               >
                 <X className="w-4 h-4" />

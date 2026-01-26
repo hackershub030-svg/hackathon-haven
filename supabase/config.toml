@@ -4,4 +4,7 @@ verify_jwt = false
 [functions.notify-gallery-open]
 verify_jwt = false
 
+[functions.send-team-request-notification]
+verify_jwt = false
+
 project_id = "ficvvbulwubskqghzbkk"

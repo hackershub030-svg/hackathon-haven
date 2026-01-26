@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Code2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectCard } from './ProjectCard';
+import { ProjectDetailModal } from './ProjectDetailModal';
 
 interface Project {
   id: string;
@@ -22,6 +24,9 @@ interface ProjectGallerySectionProps {
 }
 
 export function ProjectGallerySection({ hackathonId }: ProjectGallerySectionProps) {
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
   const { data: projects, isLoading } = useQuery({
     queryKey: ['hackathon-gallery-projects', hackathonId],
     queryFn: async () => {
@@ -49,6 +54,11 @@ export function ProjectGallerySection({ hackathonId }: ProjectGallerySectionProp
     },
   });
 
+  const handleProjectClick = (project: Project) => {
+    setSelectedProject(project);
+    setModalOpen(true);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -74,10 +84,23 @@ export function ProjectGallerySection({ hackathonId }: ProjectGallerySectionProp
   }
 
   return (
-    <div className="grid md:grid-cols-2 gap-6">
-      {projects.map((project, index) => (
-        <ProjectCard key={project.id} project={project} index={index} />
-      ))}
-    </div>
+    <>
+      <div className="grid md:grid-cols-2 gap-6">
+        {projects.map((project, index) => (
+          <ProjectCard
+            key={project.id}
+            project={project}
+            index={index}
+            onClick={() => handleProjectClick(project)}
+          />
+        ))}
+      </div>
+
+      <ProjectDetailModal
+        project={selectedProject}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+      />
+    </>
   );
 }

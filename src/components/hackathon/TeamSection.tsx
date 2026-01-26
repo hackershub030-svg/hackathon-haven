@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Users, Mail, CheckCircle2, Clock, Crown, Share2, UserMinus, UsersRound, MoreVertical } from 'lucide-react';
@@ -51,15 +51,13 @@ export function TeamSection({ teamId, hackathon, hackathonId }: TeamSectionProps
     },
   });
 
-  const { data: members } = useQuery({
+  // Fetch team members without profile join (to avoid FK errors)
+  const { data: membersRaw } = useQuery({
     queryKey: ['team-members', teamId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('team_members')
-        .select(`
-          *,
-          profile:profiles(full_name, avatar_url, username)
-        `)
+        .select('*')
         .eq('team_id', teamId)
         .neq('join_status', 'pending')
         .order('role', { ascending: true });
@@ -68,6 +66,40 @@ export function TeamSection({ teamId, hackathon, hackathonId }: TeamSectionProps
       return data;
     },
   });
+
+  // Fetch profiles separately for team members
+  const { data: memberProfiles } = useQuery({
+    queryKey: ['team-member-profiles', membersRaw?.map(m => m.user_id).filter(Boolean)],
+    queryFn: async () => {
+      const userIds = membersRaw?.map(m => m.user_id).filter(Boolean) || [];
+      if (userIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, avatar_url, username')
+        .in('user_id', userIds);
+      
+      if (error) {
+        console.error('Error fetching member profiles:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!membersRaw && membersRaw.length > 0,
+  });
+
+  // Merge members with profiles
+  const members = useMemo(() => {
+    if (!membersRaw) return [];
+    
+    return membersRaw.map(member => {
+      const profile = memberProfiles?.find(p => p.user_id === member.user_id);
+      return {
+        ...member,
+        profile: profile || null,
+      };
+    });
+  }, [membersRaw, memberProfiles]);
 
   const isTeamLeader = team?.created_by === user?.id;
   const maxTeamSize = hackathon.max_team_size || 4;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +7,16 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Check,
   X,
@@ -20,10 +30,26 @@ interface TeamJoinRequestsProps {
   hackathonId: string;
 }
 
+interface ConfirmDialogState {
+  open: boolean;
+  memberId: string;
+  memberEmail: string;
+  memberName: string;
+  approved: boolean;
+}
+
 export function TeamJoinRequests({ teamId, hackathonId }: TeamJoinRequestsProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
+    open: false,
+    memberId: '',
+    memberEmail: '',
+    memberName: '',
+    approved: false,
+  });
 
   // Fetch pending requests - without profile join
   const { data: pendingRequestsRaw, isLoading } = useQuery({
@@ -159,8 +185,8 @@ export function TeamJoinRequests({ teamId, hackathonId }: TeamJoinRequestsProps)
             user_id: member.user_id,
             type: 'team_invite',
             title: 'Request Approved! 🎉',
-            message: 'Your request to join the team has been approved!',
-            metadata: { team_id: teamId, approved: true },
+            message: `Your request to join ${team?.team_name || 'the team'} has been approved!`,
+            metadata: { team_id: teamId, hackathon_id: hackathonId, approved: true },
           });
         }
       } else {
@@ -178,8 +204,8 @@ export function TeamJoinRequests({ teamId, hackathonId }: TeamJoinRequestsProps)
             user_id: member.user_id,
             type: 'team_invite',
             title: 'Request Declined',
-            message: 'Your request to join the team has been declined.',
-            metadata: { team_id: teamId, approved: false },
+            message: `Your request to join ${team?.team_name || 'the team'} has been declined.`,
+            metadata: { team_id: teamId, hackathon_id: hackathonId, approved: false },
           });
         }
       }
@@ -211,6 +237,8 @@ export function TeamJoinRequests({ teamId, hackathonId }: TeamJoinRequestsProps)
       });
       queryClient.invalidateQueries({ queryKey: ['pending-join-requests', teamId] });
       queryClient.invalidateQueries({ queryKey: ['team-members', teamId] });
+      queryClient.invalidateQueries({ queryKey: ['team-all-members', teamId] });
+      queryClient.invalidateQueries({ queryKey: ['team-dashboard', teamId] });
     },
     onError: (error: any) => {
       toast({
@@ -220,6 +248,26 @@ export function TeamJoinRequests({ teamId, hackathonId }: TeamJoinRequestsProps)
       });
     },
   });
+
+  const handleConfirmAction = () => {
+    respondMutation.mutate({
+      memberId: confirmDialog.memberId,
+      approved: confirmDialog.approved,
+      memberEmail: confirmDialog.memberEmail,
+      memberName: confirmDialog.memberName,
+    });
+    setConfirmDialog(prev => ({ ...prev, open: false }));
+  };
+
+  const openConfirmDialog = (memberId: string, memberEmail: string, memberName: string, approved: boolean) => {
+    setConfirmDialog({
+      open: true,
+      memberId,
+      memberEmail,
+      memberName,
+      approved,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -234,71 +282,101 @@ export function TeamJoinRequests({ teamId, hackathonId }: TeamJoinRequestsProps)
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <UserPlus className="w-5 h-5 text-primary" />
-        <h3 className="font-semibold">Pending Join Requests</h3>
-        <Badge variant="secondary">{pendingRequests.length}</Badge>
+    <>
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <UserPlus className="w-5 h-5 text-primary" />
+          <h3 className="font-semibold">Pending Join Requests</h3>
+          <Badge variant="secondary">{pendingRequests.length}</Badge>
+        </div>
+
+        <AnimatePresence>
+          {pendingRequests.map((request: any) => (
+            <motion.div
+              key={request.id}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-amber-500/30"
+            >
+              <div className="flex items-center gap-3">
+                <Avatar className="w-10 h-10 border-2 border-amber-500/30">
+                  <AvatarImage src={request.profile?.avatar_url || undefined} />
+                  <AvatarFallback className="bg-amber-500/20">
+                    {(request.profile?.full_name?.[0] || request.email[0]).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium">
+                    {request.profile?.full_name || request.email.split('@')[0]}
+                  </p>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    Pending approval
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => openConfirmDialog(
+                    request.id,
+                    request.email,
+                    request.profile?.full_name || request.email.split('@')[0],
+                    true
+                  )}
+                  disabled={respondMutation.isPending}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  <Check className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => openConfirmDialog(
+                    request.id,
+                    request.email,
+                    request.profile?.full_name || request.email.split('@')[0],
+                    false
+                  )}
+                  disabled={respondMutation.isPending}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
-      <AnimatePresence>
-        {pendingRequests.map((request: any) => (
-          <motion.div
-            key={request.id}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-yellow-500/30"
-          >
-            <div className="flex items-center gap-3">
-              <Avatar className="w-10 h-10 border-2 border-yellow-500/30">
-                <AvatarImage src={request.profile?.avatar_url || undefined} />
-                <AvatarFallback className="bg-yellow-500/20">
-                  {(request.profile?.full_name?.[0] || request.email[0]).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-medium">
-                  {request.profile?.full_name || request.email.split('@')[0]}
-                </p>
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  Pending approval
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => respondMutation.mutate({ 
-                  memberId: request.id, 
-                  approved: true,
-                  memberEmail: request.email,
-                  memberName: request.profile?.full_name || request.email.split('@')[0],
-                })}
-                disabled={respondMutation.isPending}
-                className="bg-emerald-600 hover:bg-emerald-700"
-              >
-                <Check className="w-4 h-4" />
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => respondMutation.mutate({ 
-                  memberId: request.id, 
-                  approved: false,
-                  memberEmail: request.email,
-                  memberName: request.profile?.full_name || request.email.split('@')[0],
-                })}
-                disabled={respondMutation.isPending}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </motion.div>
-        ))}
-      </AnimatePresence>
-    </div>
+      {/* Confirmation Dialog */}
+      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}>
+        <AlertDialogContent className="bg-background border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmDialog.approved ? 'Approve Request' : 'Reject Request'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDialog.approved
+                ? `Are you sure you want to approve ${confirmDialog.memberName}'s request to join your team? They will become a member immediately.`
+                : `Are you sure you want to reject ${confirmDialog.memberName}'s request? This action cannot be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              className={confirmDialog.approved ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-destructive hover:bg-destructive/90'}
+            >
+              {respondMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              {confirmDialog.approved ? 'Approve' : 'Reject'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

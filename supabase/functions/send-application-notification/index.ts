@@ -51,35 +51,35 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Missing required fields");
     }
 
+    // Fetch application first
     const { data: application, error: appError } = await supabase
       .from("applications")
-      .select(`
-        id,
-        user_id,
-        hackathon_id,
-        profile:profiles!applications_user_id_fkey(email, full_name)
-      `)
+      .select("id, user_id, hackathon_id")
       .eq("id", applicationId)
-      .single();
+      .maybeSingle();
 
     if (appError || !application) {
+      console.error("Application query error:", appError);
       throw new Error("Application not found");
     }
 
-    const profile = Array.isArray(application.profile) 
-      ? application.profile[0] 
-      : application.profile;
-    
-    const userEmail = profile?.email;
-    const userName = profile?.full_name || "Participant";
-    const isAccepted = status === "accepted";
-
-    // Create in-app notification
+    // Fetch profile separately using service role to bypass RLS
     const supabaseAdmin = createClient(
       supabaseUrl,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("email, full_name")
+      .eq("user_id", application.user_id)
+      .maybeSingle();
+    
+    const userEmail = profile?.email;
+    const userName = profile?.full_name || "Participant";
+    const isAccepted = status === "accepted";
+
+    // Create in-app notification using the same admin client
     await supabaseAdmin.from("notifications").insert({
       user_id: application.user_id,
       type: "application",

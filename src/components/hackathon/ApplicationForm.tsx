@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Trash2, Users, Loader2, UserPlus } from 'lucide-react';
+import { Trash2, Users, Loader2, UserPlus, Crown, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { JoinTeamModal } from './JoinTeamModal';
 
 const applicationSchema = z.object({
   teamName: z.string().min(2, 'Team name must be at least 2 characters'),
@@ -34,12 +35,15 @@ interface ApplicationFormProps {
   };
 }
 
+type FormMode = 'select' | 'create';
+
 export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps) {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [isSoloApplication, setIsSoloApplication] = useState(hackathon.min_team_size === 1);
+  const [mode, setMode] = useState<FormMode>('select');
+  const [joinModalOpen, setJoinModalOpen] = useState(false);
 
   const {
     register,
@@ -65,7 +69,6 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
 
   const submitMutation = useMutation({
     mutationFn: async (data: ApplicationFormData) => {
-      // 1. Create team
       const { data: team, error: teamError } = await supabase
         .from('teams')
         .insert({
@@ -78,7 +81,6 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
 
       if (teamError) throw teamError;
 
-      // 2. Add leader as team member
       const { error: leaderError } = await supabase
         .from('team_members')
         .insert({
@@ -91,7 +93,6 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
 
       if (leaderError) throw leaderError;
 
-      // 3. Add other team members (invites)
       if (data.teamMembers && data.teamMembers.length > 0) {
         const membersToInsert = data.teamMembers.map((member) => ({
           team_id: team.id,
@@ -107,7 +108,6 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
         if (membersError) throw membersError;
       }
 
-      // 4. Create application
       const { error: appError } = await supabase
         .from('applications')
         .insert({
@@ -123,7 +123,6 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
         });
 
       if (appError) throw appError;
-
       return team;
     },
     onSuccess: () => {
@@ -148,19 +147,88 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
     submitMutation.mutate(data);
   };
 
+  if (mode === 'select') {
+    return (
+      <>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-8"
+        >
+          <h2 className="text-2xl font-heading font-bold mb-2">Join {hackathon.title}</h2>
+          <p className="text-muted-foreground mb-8">
+            Choose how you want to participate in this hackathon
+          </p>
+
+          <div className="grid gap-4">
+            <button
+              onClick={() => setMode('create')}
+              className="p-6 rounded-xl border border-border bg-muted/30 hover:border-primary/50 hover:bg-muted/50 transition-all text-left group"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center shrink-0">
+                  <Crown className="w-6 h-6 text-primary-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                    Create a Team
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Start a new team and invite others to join. You'll be the team leader.
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setJoinModalOpen(true)}
+              className="p-6 rounded-xl border border-border bg-muted/30 hover:border-primary/50 hover:bg-muted/50 transition-all text-left group"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                  <UserPlus className="w-6 h-6 text-secondary-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                    Join Using Code
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Have an invite code? Enter it to join an existing team.
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </motion.div>
+
+        <JoinTeamModal
+          open={joinModalOpen}
+          onOpenChange={setJoinModalOpen}
+          hackathonId={hackathonId}
+        />
+      </>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="glass-card p-8"
     >
-      <h2 className="text-2xl font-heading font-bold mb-2">Apply for {hackathon.title}</h2>
-      <p className="text-muted-foreground mb-6">
-        Fill out the form below to register your team
-      </p>
+      <div className="flex items-center gap-4 mb-6">
+        <Button variant="ghost" size="icon" onClick={() => setMode('select')}>
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <div>
+          <h2 className="text-2xl font-heading font-bold">Create a Team</h2>
+          <p className="text-muted-foreground">
+            Fill out the form below to register your team for {hackathon.title}
+          </p>
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Team Name */}
         <div className="space-y-2">
           <Label htmlFor="teamName">Team Name *</Label>
           <Input
@@ -174,7 +242,6 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
           )}
         </div>
 
-        {/* Team Members */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <Label>Team Members</Label>
@@ -183,7 +250,6 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
             </span>
           </div>
 
-          {/* Leader (current user) */}
           <div className="p-4 rounded-lg bg-primary/10 border border-primary/30">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center">
@@ -196,7 +262,6 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
             </div>
           </div>
 
-          {/* Additional members */}
           {fields.map((field, index) => (
             <div key={field.id} className="flex items-center gap-2">
               <div className="flex-1">
@@ -234,13 +299,8 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
               Invite Team Member
             </Button>
           )}
-
-          <p className="text-sm text-muted-foreground">
-            Team members will receive an invitation to join your team.
-          </p>
         </div>
 
-        {/* Project Idea */}
         <div className="space-y-2">
           <Label htmlFor="projectIdea">Project Idea *</Label>
           <Textarea
@@ -255,7 +315,6 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
           )}
         </div>
 
-        {/* Why Join */}
         <div className="space-y-2">
           <Label htmlFor="whyJoin">Why do you want to participate? *</Label>
           <Textarea

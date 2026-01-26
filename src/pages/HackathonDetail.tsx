@@ -411,7 +411,11 @@ export default function HackathonDetail() {
 
                   <TabsContent value="team" className="mt-0">
                     {userApplication?.team && (
-                      <TeamSection teamId={userApplication.team.id} hackathon={hackathon} />
+                      <TeamSection 
+                        teamId={userApplication.team.id} 
+                        hackathon={hackathon} 
+                        hackathonId={id!}
+                      />
                     )}
                   </TabsContent>
 

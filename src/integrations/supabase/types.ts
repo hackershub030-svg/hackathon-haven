@@ -498,12 +498,61 @@ export type Database = {
           },
         ]
       }
+      team_invite_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          hackathon_id: string
+          id: string
+          status: string
+          team_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          hackathon_id: string
+          id?: string
+          status?: string
+          team_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          hackathon_id?: string
+          id?: string
+          status?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_invite_codes_hackathon_id_fkey"
+            columns: ["hackathon_id"]
+            isOneToOne: false
+            referencedRelation: "hackathons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_invite_codes_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           accepted: boolean | null
           created_at: string | null
           email: string
           id: string
+          join_status: string | null
           role: Database["public"]["Enums"]["team_role"] | null
           team_id: string
           user_id: string | null
@@ -513,6 +562,7 @@ export type Database = {
           created_at?: string | null
           email: string
           id?: string
+          join_status?: string | null
           role?: Database["public"]["Enums"]["team_role"] | null
           team_id: string
           user_id?: string | null
@@ -522,6 +572,7 @@ export type Database = {
           created_at?: string | null
           email?: string
           id?: string
+          join_status?: string | null
           role?: Database["public"]["Enums"]["team_role"] | null
           team_id?: string
           user_id?: string | null
@@ -640,6 +691,10 @@ export type Database = {
         Returns: boolean
       }
       user_has_project_for_hackathon: {
+        Args: { _hackathon_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_in_hackathon_team: {
         Args: { _hackathon_id: string; _user_id: string }
         Returns: boolean
       }

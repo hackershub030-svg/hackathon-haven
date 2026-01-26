@@ -210,13 +210,31 @@ export default function OrganizerDashboard() {
         .eq('id', id);
 
       if (error) throw error;
+
+      // Send email notifications when gallery is enabled
+      if (isPublic && hackathon) {
+        try {
+          const { data: session } = await supabase.auth.getSession();
+          await supabase.functions.invoke('notify-gallery-open', {
+            body: {
+              hackathonId: id,
+              hackathonTitle: hackathon.title,
+            },
+            headers: {
+              Authorization: `Bearer ${session.session?.access_token}`,
+            },
+          });
+        } catch (notifyError) {
+          console.error('Failed to send notifications:', notifyError);
+        }
+      }
     },
     onSuccess: (_, isPublic) => {
       queryClient.invalidateQueries({ queryKey: ['hackathon'] });
       toast({
         title: isPublic ? 'Gallery Enabled' : 'Gallery Disabled',
         description: isPublic
-          ? 'Participants can now submit and view projects.'
+          ? 'Participants have been notified and can now submit projects.'
           : 'The gallery is now hidden from participants.',
       });
     },

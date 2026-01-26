@@ -68,6 +68,23 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
     enabled: !!user && !!hackathonId,
   });
 
+  // Check if user already has an application for this hackathon
+  const { data: existingApplication, isLoading: isLoadingApplication } = useQuery({
+    queryKey: ['user-existing-application', hackathonId, user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('applications')
+        .select('id, status')
+        .eq('hackathon_id', hackathonId)
+        .eq('user_id', user!.id)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    },
+    enabled: !!user && !!hackathonId,
+  });
+
   const {
     register,
     control,
@@ -190,8 +207,8 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
     submitMutation.mutate(data);
   };
 
-  // Show loading state while checking membership
-  if (isLoadingMembership) {
+  // Show loading state while checking membership and existing application
+  if (isLoadingMembership || isLoadingApplication) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -200,6 +217,37 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
       >
         <Loader2 className="w-6 h-6 animate-spin text-primary mr-2" />
         <span className="text-muted-foreground">Checking participation status...</span>
+      </motion.div>
+    );
+  }
+
+  // If user already has an application for this hackathon
+  if (existingApplication) {
+    const statusLabel = existingApplication.status === 'submitted' ? 'pending review' :
+                        existingApplication.status === 'accepted' ? 'accepted' :
+                        existingApplication.status === 'rejected' ? 'not accepted' :
+                        existingApplication.status === 'waitlisted' ? 'waitlisted' : 'submitted';
+    
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass-card p-8 text-center"
+      >
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/20 flex items-center justify-center">
+          <Users className="w-8 h-8 text-primary" />
+        </div>
+        <h2 className="text-2xl font-heading font-bold mb-2">Already Applied</h2>
+        <p className="text-muted-foreground mb-4">
+          You have already submitted an application for {hackathon.title}. 
+          Your application is currently <span className="font-medium text-primary">{statusLabel}</span>.
+        </p>
+        <Link to={`/hackathon/${hackathonId}`}>
+          <Button variant="outline">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Hackathon
+          </Button>
+        </Link>
       </motion.div>
     );
   }

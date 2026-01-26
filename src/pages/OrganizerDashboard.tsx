@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import {
@@ -105,6 +106,50 @@ export default function OrganizerDashboard() {
     },
     enabled: !!id,
   });
+
+  // Real-time subscription for new applications
+  useEffect(() => {
+    if (!id) return;
+
+    const channel: RealtimeChannel = supabase
+      .channel(`applications-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'applications',
+          filter: `hackathon_id=eq.${id}`,
+        },
+        () => {
+          // Invalidate queries to refresh the data
+          queryClient.invalidateQueries({ queryKey: ['hackathon-applications', id] });
+          queryClient.invalidateQueries({ queryKey: ['hackathon-stats', id] });
+          toast({
+            title: 'New Application!',
+            description: 'A new team has applied to your hackathon.',
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'applications',
+          filter: `hackathon_id=eq.${id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['hackathon-applications', id] });
+          queryClient.invalidateQueries({ queryKey: ['hackathon-stats', id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, queryClient, toast]);
 
   const { data: projects } = useQuery({
     queryKey: ['hackathon-projects', id],

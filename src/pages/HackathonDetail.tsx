@@ -12,10 +12,10 @@ import {
   Wifi,
   Building,
   Sparkles,
-  ExternalLink,
   FileText,
   Loader2,
   MessageCircle,
+  Image,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { ApplicationForm } from '@/components/hackathon/ApplicationForm';
 import { TeamSection } from '@/components/hackathon/TeamSection';
 import { TeamChat } from '@/components/hackathon/TeamChat';
+import { ProjectGallerySection } from '@/components/hackathon/ProjectGallerySection';
+import { ProjectSubmissionForm } from '@/components/hackathon/ProjectSubmissionForm';
 
 const modeIcons = {
   online: Wifi,
@@ -141,7 +143,9 @@ export default function HackathonDetail() {
   const ModeIcon = modeIcons[hackathon.mode as keyof typeof modeIcons];
   const isDeadlinePassed = hackathon.application_deadline && new Date(hackathon.application_deadline) < new Date();
   const hasApplied = !!userApplication;
+  const isAccepted = userApplication?.status === 'accepted';
   const teamId = userApplication?.team?.id || userTeamMembership?.team?.id;
+  const isGalleryPublic = hackathon.is_gallery_public;
 
   return (
     <Layout>
@@ -257,6 +261,12 @@ export default function HackathonDetail() {
               <TabsList className="bg-muted/50 mb-8">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="prizes">Prizes</TabsTrigger>
+                {isGalleryPublic && (
+                  <TabsTrigger value="gallery">
+                    <Image className="w-4 h-4 mr-2" />
+                    Gallery
+                  </TabsTrigger>
+                )}
                 {user && !hasApplied && !isDeadlinePassed && (
                   <TabsTrigger value="apply">Apply</TabsTrigger>
                 )}
@@ -367,6 +377,33 @@ export default function HackathonDetail() {
                       )}
                     </motion.div>
                   </TabsContent>
+
+                  {isGalleryPublic && (
+                    <TabsContent value="gallery" className="mt-0">
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-8"
+                      >
+                        <div className="glass-card p-8">
+                          <h2 className="text-2xl font-heading font-bold mb-6 flex items-center gap-2">
+                            <Image className="w-6 h-6 text-primary" />
+                            Project Gallery
+                          </h2>
+                          
+                          {/* Show submission form for accepted participants */}
+                          {user && isAccepted && (
+                            <div className="mb-8">
+                              <ProjectSubmissionForm hackathonId={id!} teamId={teamId} />
+                            </div>
+                          )}
+                          
+                          {/* Show all submitted projects */}
+                          <ProjectGallerySection hackathonId={id!} />
+                        </div>
+                      </motion.div>
+                    </TabsContent>
+                  )}
 
                   <TabsContent value="apply" className="mt-0">
                     <ApplicationForm hackathonId={id!} hackathon={hackathon} />

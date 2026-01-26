@@ -106,6 +106,7 @@ export type Database = {
           description: string | null
           end_date: string | null
           id: string
+          is_gallery_public: boolean | null
           location: string | null
           max_team_size: number | null
           min_team_size: number | null
@@ -125,6 +126,7 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           id?: string
+          is_gallery_public?: boolean | null
           location?: string | null
           max_team_size?: number | null
           min_team_size?: number | null
@@ -144,6 +146,7 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           id?: string
+          is_gallery_public?: boolean | null
           location?: string | null
           max_team_size?: number | null
           min_team_size?: number | null
@@ -598,12 +601,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_gallery_public: { Args: { _hackathon_id: string }; Returns: boolean }
       is_hackathon_organizer: {
         Args: { _hackathon_id: string; _user_id: string }
         Returns: boolean
       }
       is_team_member: {
         Args: { _team_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_has_project_for_hackathon: {
+        Args: { _hackathon_id: string; _user_id: string }
         Returns: boolean
       }
     }

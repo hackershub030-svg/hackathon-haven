@@ -19,6 +19,7 @@ import {
   Pause,
   Mail,
   Star,
+  Image,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { Layout } from '@/components/layout/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -192,6 +195,29 @@ export default function OrganizerDashboard() {
         description: status === 'live'
           ? 'Your hackathon is now live and accepting applications.'
           : `Hackathon status changed to ${status}.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const toggleGalleryMutation = useMutation({
+    mutationFn: async (isPublic: boolean) => {
+      const { error } = await supabase
+        .from('hackathons')
+        .update({ is_gallery_public: isPublic })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, isPublic) => {
+      queryClient.invalidateQueries({ queryKey: ['hackathon'] });
+      toast({
+        title: isPublic ? 'Gallery Enabled' : 'Gallery Disabled',
+        description: isPublic
+          ? 'Participants can now submit and view projects.'
+          : 'The gallery is now hidden from participants.',
       });
     },
     onError: (error: any) => {
@@ -376,6 +402,10 @@ export default function OrganizerDashboard() {
                 <TabsTrigger value="judging">
                   <Star className="w-4 h-4 mr-2" />
                   Judging
+                </TabsTrigger>
+                <TabsTrigger value="settings">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
                 </TabsTrigger>
               </TabsList>
 
@@ -568,6 +598,48 @@ export default function OrganizerDashboard() {
 
               <TabsContent value="judging">
                 <JudgingTab hackathonId={id!} />
+              </TabsContent>
+
+              <TabsContent value="settings">
+                <div className="glass-card p-6">
+                  <h2 className="text-xl font-heading font-semibold mb-6">Hackathon Settings</h2>
+                  
+                  <div className="space-y-6">
+                    {/* Gallery Toggle */}
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                          <Image className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">Project Gallery</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Enable the gallery section for participants to submit and view projects
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Label htmlFor="gallery-toggle" className="text-sm text-muted-foreground">
+                          {hackathon.is_gallery_public ? 'Enabled' : 'Disabled'}
+                        </Label>
+                        <Switch
+                          id="gallery-toggle"
+                          checked={hackathon.is_gallery_public || false}
+                          onCheckedChange={(checked) => toggleGalleryMutation.mutate(checked)}
+                          disabled={toggleGalleryMutation.isPending}
+                        />
+                      </div>
+                    </div>
+
+                    {hackathon.is_gallery_public && (
+                      <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30">
+                        <p className="text-sm text-green-400">
+                          ✓ Gallery is enabled. Accepted participants can now submit their projects and view all submissions in the hackathon page.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </TabsContent>
             </Tabs>
           </motion.div>

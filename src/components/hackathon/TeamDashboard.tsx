@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,6 +37,7 @@ interface TeamActivity {
 
 export function TeamDashboard({ teamId, hackathonId }: TeamDashboardProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Fetch team info
   const { data: team, isLoading: isLoadingTeam } = useQuery({
@@ -57,10 +60,7 @@ export function TeamDashboard({ teamId, hackathonId }: TeamDashboardProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('team_members')
-        .select(`
-          *,
-          profile:profiles!left(full_name, avatar_url)
-        `)
+        .select('*')
         .eq('team_id', teamId)
         .order('created_at', { ascending: false });
 
@@ -68,11 +68,48 @@ export function TeamDashboard({ teamId, hackathonId }: TeamDashboardProps) {
         console.error('Error fetching team members:', error);
         throw error;
       }
-      console.log('Team members fetched:', data);
-      return data;
+      
+      // Fetch profiles separately for members with user_id
+      const userIds = data?.filter(m => m.user_id).map(m => m.user_id) || [];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, avatar_url')
+        .in('user_id', userIds);
+      
+      // Merge profile data with members
+      const membersWithProfiles = data?.map(member => ({
+        ...member,
+        profile: profiles?.find(p => p.user_id === member.user_id) || null
+      }));
+      
+      console.log('Team members with profiles:', membersWithProfiles);
+      return membersWithProfiles;
     },
-    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
   });
+
+  // Real-time subscription for team member changes
+  useEffect(() => {
+    const channel = supabase
+      .channel(`team-members-realtime-${teamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'team_members',
+          filter: `team_id=eq.${teamId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['team-all-members', teamId] });
+          queryClient.invalidateQueries({ queryKey: ['team-members', teamId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [teamId, queryClient]);
 
   // Simulate activity log from team members data
   const activities: TeamActivity[] = allMembers?.map((member: any) => {

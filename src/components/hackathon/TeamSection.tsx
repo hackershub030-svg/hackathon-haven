@@ -1,10 +1,16 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Users, Mail, CheckCircle2, Clock, Crown, Share2, UserMinus, UsersRound } from 'lucide-react';
+import { Users, Mail, CheckCircle2, Clock, Crown, Share2, UserMinus, UsersRound, MoreVertical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { TeamInviteModal } from './TeamInviteModal';
@@ -12,6 +18,7 @@ import { TeamJoinRequests } from './TeamJoinRequests';
 import { RemoveMemberDialog } from './RemoveMemberDialog';
 import { BulkInviteModal } from './BulkInviteModal';
 import { TeamDashboard } from './TeamDashboard';
+import { TransferLeadershipDialog } from './TransferLeadershipDialog';
 
 interface TeamSectionProps {
   teamId: string;
@@ -24,9 +31,11 @@ interface TeamSectionProps {
 
 export function TeamSection({ teamId, hackathon, hackathonId }: TeamSectionProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [bulkInviteOpen, setBulkInviteOpen] = useState(false);
   const [removeMember, setRemoveMember] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [transferLeadershipOpen, setTransferLeadershipOpen] = useState(false);
 
   const { data: team } = useQuery({
     queryKey: ['team', teamId],
@@ -64,6 +73,31 @@ export function TeamSection({ teamId, hackathon, hackathonId }: TeamSectionProps
   const maxTeamSize = hackathon.max_team_size || 4;
   const currentMemberCount = members?.length || 0;
   const canInviteMore = currentMemberCount < maxTeamSize;
+
+  // Real-time subscription for team updates
+  useEffect(() => {
+    const channel = supabase
+      .channel(`team-section-${teamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'team_members',
+          filter: `team_id=eq.${teamId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['team-members', teamId] });
+          queryClient.invalidateQueries({ queryKey: ['team-all-members', teamId] });
+          queryClient.invalidateQueries({ queryKey: ['pending-join-requests', teamId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [teamId, queryClient]);
 
   return (
     <>
@@ -111,9 +145,26 @@ export function TeamSection({ teamId, hackathon, hackathonId }: TeamSectionProps
               </>
             )}
             {isTeamLeader && !canInviteMore && (
-              <Badge variant="outline" className="text-muted-foreground">
-                Team Full
-              </Badge>
+              <>
+                <Badge variant="outline" className="text-muted-foreground">
+                  Team Full
+                </Badge>
+              </>
+            )}
+            {isTeamLeader && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setTransferLeadershipOpen(true)}>
+                    <Crown className="w-4 h-4 mr-2 text-amber-400" />
+                    Transfer Leadership
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>
@@ -229,6 +280,17 @@ export function TeamSection({ teamId, hackathon, hackathonId }: TeamSectionProps
           memberEmail={removeMember.email}
           teamId={teamId}
           hackathonId={hackathonId}
+        />
+      )}
+
+      {/* Transfer Leadership Dialog */}
+      {team && isTeamLeader && (
+        <TransferLeadershipDialog
+          open={transferLeadershipOpen}
+          onOpenChange={setTransferLeadershipOpen}
+          teamId={teamId}
+          hackathonId={hackathonId}
+          currentLeaderId={team.created_by}
         />
       )}
     </>

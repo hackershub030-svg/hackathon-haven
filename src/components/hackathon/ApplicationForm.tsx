@@ -1,15 +1,16 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, Link } from 'react-router-dom';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Trash2, Users, Loader2, UserPlus, Crown, ArrowLeft } from 'lucide-react';
+import { Trash2, Users, Loader2, UserPlus, Crown, ArrowLeft, CheckCircle2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -44,6 +45,26 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<FormMode>('select');
   const [joinModalOpen, setJoinModalOpen] = useState(false);
+
+  // Check if user is already a member of a team for this hackathon
+  const { data: existingTeamMembership, isLoading: isLoadingMembership } = useQuery({
+    queryKey: ['user-team-membership-apply', hackathonId, user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('team_members')
+        .select(`
+          *,
+          team:teams!inner(id, team_name, hackathon_id, created_by)
+        `)
+        .eq('user_id', user!.id)
+        .eq('team.hackathon_id', hackathonId)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    },
+    enabled: !!user && !!hackathonId,
+  });
 
   const {
     register,
@@ -146,6 +167,104 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
   const onSubmit = (data: ApplicationFormData) => {
     submitMutation.mutate(data);
   };
+
+  // Show loading state while checking membership
+  if (isLoadingMembership) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass-card p-8 flex items-center justify-center"
+      >
+        <Loader2 className="w-6 h-6 animate-spin text-primary mr-2" />
+        <span className="text-muted-foreground">Checking participation status...</span>
+      </motion.div>
+    );
+  }
+
+  // If user is already part of a team for this hackathon, show team info
+  if (existingTeamMembership) {
+    const team = existingTeamMembership.team as { id: string; team_name: string; hackathon_id: string; created_by: string };
+    const isApproved = existingTeamMembership.accepted && existingTeamMembership.join_status === 'accepted';
+    const isPending = existingTeamMembership.join_status === 'pending';
+    const isLeader = existingTeamMembership.role === 'leader';
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass-card p-8"
+      >
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-14 h-14 rounded-full bg-gradient-primary flex items-center justify-center">
+            {isApproved ? (
+              <CheckCircle2 className="w-7 h-7 text-primary-foreground" />
+            ) : (
+              <Users className="w-7 h-7 text-primary-foreground" />
+            )}
+          </div>
+          <div>
+            <h2 className="text-2xl font-heading font-bold">
+              {isApproved ? "You're in!" : isPending ? 'Request Pending' : 'Team Joined'}
+            </h2>
+            <p className="text-muted-foreground">
+              {isApproved 
+                ? `You're a member of team "${team.team_name}" for ${hackathon.title}`
+                : isPending 
+                  ? 'Your join request is waiting for approval from the team leader'
+                  : `You've joined team "${team.team_name}"`
+              }
+            </p>
+          </div>
+        </div>
+
+        <div className="p-6 rounded-xl border border-border bg-muted/30 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+                <Users className="w-5 h-5 text-secondary-foreground" />
+              </div>
+              <div>
+                <h3 className="font-semibold">{team.team_name}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {isLeader ? 'Team Leader' : 'Team Member'}
+                </p>
+              </div>
+            </div>
+            <Badge className={isApproved ? 'bg-green-500/20 text-green-400 border border-green-500/30' : isPending ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-primary/20 text-primary'}>
+              {isApproved ? 'Approved' : isPending ? 'Pending Approval' : existingTeamMembership.join_status}
+            </Badge>
+          </div>
+
+          {isApproved && (
+            <div className="flex gap-3 mt-4">
+              <Link to={`/hackathon/${hackathonId}`} className="flex-1">
+                <Button variant="outline" className="w-full">
+                  <Users className="w-4 h-4 mr-2" />
+                  View Team
+                </Button>
+              </Link>
+              <Link to={`/hackathon/${hackathonId}`} onClick={() => {
+                // This will navigate and we'll need to switch to chat tab
+                sessionStorage.setItem('hackathon-active-tab', 'chat');
+              }} className="flex-1">
+                <Button className="w-full bg-gradient-primary hover:opacity-90 text-primary-foreground">
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Team Chat
+                </Button>
+              </Link>
+            </div>
+          )}
+
+          {isPending && (
+            <p className="text-sm text-muted-foreground mt-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+              The team leader will review your request. You'll be notified once they approve it.
+            </p>
+          )}
+        </div>
+      </motion.div>
+    );
+  }
 
   if (mode === 'select') {
     return (

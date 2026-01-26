@@ -144,8 +144,13 @@ export default function HackathonDetail() {
   const isDeadlinePassed = hackathon.application_deadline && new Date(hackathon.application_deadline) < new Date();
   const hasApplied = !!userApplication;
   const isAccepted = userApplication?.status === 'accepted';
+  const hasTeamMembership = !!userTeamMembership;
+  const isTeamMemberApproved = userTeamMembership?.accepted && userTeamMembership?.join_status === 'accepted';
   const teamId = userApplication?.team?.id || userTeamMembership?.team?.id;
   const isGalleryPublic = hackathon.is_gallery_public;
+  
+  // User is considered "participating" if they have an application or an approved team membership
+  const isParticipating = hasApplied || hasTeamMembership;
 
   return (
     <Layout>
@@ -233,6 +238,14 @@ export default function HackathonDetail() {
                   <Badge className="bg-green-500/20 text-green-400 border border-green-500/30">
                     Applied - {userApplication.status}
                   </Badge>
+                ) : hasTeamMembership ? (
+                  <Badge className={
+                    isTeamMemberApproved 
+                      ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                      : "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
+                  }>
+                    {isTeamMemberApproved ? 'Team Member' : 'Pending Approval'}
+                  </Badge>
                 ) : isDeadlinePassed ? (
                   <Badge variant="secondary">Applications Closed</Badge>
                 ) : (
@@ -267,13 +280,18 @@ export default function HackathonDetail() {
                     Gallery
                   </TabsTrigger>
                 )}
-                {user && !hasApplied && !isDeadlinePassed && (
+                {user && !isParticipating && !isDeadlinePassed && (
                   <TabsTrigger value="apply">Apply</TabsTrigger>
+                )}
+                {user && isParticipating && (
+                  <TabsTrigger value="apply">
+                    {hasTeamMembership && !hasApplied ? 'My Status' : 'My Team'}
+                  </TabsTrigger>
                 )}
                 {user && hasApplied && (
                   <TabsTrigger value="team">My Team</TabsTrigger>
                 )}
-                {teamId && (
+                {teamId && isTeamMemberApproved && (
                   <TabsTrigger value="chat">
                     <MessageCircle className="w-4 h-4 mr-2" />
                     Team Chat

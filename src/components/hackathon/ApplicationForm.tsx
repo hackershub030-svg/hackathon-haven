@@ -28,6 +28,7 @@ import { JoinTeamModal } from './JoinTeamModal';
 const applicationSchema = z.object({
   teamName: z.string().min(2, 'Team name must be at least 2 characters'),
   projectIdea: z.string().min(10, 'Please describe your project idea'),
+  abstract: z.string().optional(),
   whyJoin: z.string().min(10, 'Tell us why you want to participate'),
   domain: z.string().min(1, 'Please select a domain'),
   teamMembers: z.array(z.object({
@@ -122,6 +123,7 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
     defaultValues: {
       teamName: '',
       projectIdea: '',
+      abstract: '',
       whyJoin: '',
       domain: '',
       teamMembers: [],
@@ -189,6 +191,7 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
             why_join: data.whyJoin,
             domain: data.domain,
           },
+          abstract: data.abstract || null,
           presentation_url: presentationUrl || null,
         });
 
@@ -488,6 +491,17 @@ export function ApplicationForm({ hackathonId, hackathon }: ApplicationFormProps
           {errors.projectIdea && (
             <p className="text-sm text-destructive">{errors.projectIdea.message}</p>
           )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="abstract">Abstract (Optional)</Label>
+          <Textarea
+            id="abstract"
+            placeholder="Provide a brief abstract of your project..."
+            {...register('abstract')}
+            className="bg-muted/50 border-border resize-none"
+            rows={3}
+          />
         </div>
 
         <div className="space-y-2">

@@ -22,6 +22,8 @@ import {
   Star,
   Image,
   Presentation,
+  Scale,
+  BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +42,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { JudgingTab } from '@/components/organizer/JudgingTab';
+import { JuryManagementTab } from '@/components/organizer/JuryManagementTab';
+import { JuryResultsTab } from '@/components/organizer/JuryResultsTab';
 import { PresentationViewModal } from '@/components/hackathon/PresentationViewModal';
 import { ApplicationDetailModal } from '@/components/organizer/ApplicationDetailModal';
 
@@ -471,6 +475,14 @@ export default function OrganizerDashboard() {
                   <Star className="w-4 h-4 mr-2" />
                   Judging
                 </TabsTrigger>
+                <TabsTrigger value="jury">
+                  <Scale className="w-4 h-4 mr-2" />
+                  Jury
+                </TabsTrigger>
+                <TabsTrigger value="jury-results">
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Jury Results
+                </TabsTrigger>
                 <TabsTrigger value="settings">
                   <Settings className="w-4 h-4 mr-2" />
                   Settings
@@ -702,6 +714,14 @@ export default function OrganizerDashboard() {
 
               <TabsContent value="judging">
                 <JudgingTab hackathonId={id!} />
+              </TabsContent>
+
+              <TabsContent value="jury">
+                <JuryManagementTab hackathonId={id!} />
+              </TabsContent>
+
+              <TabsContent value="jury-results">
+                <JuryResultsTab hackathonId={id!} />
               </TabsContent>
 
               <TabsContent value="settings">

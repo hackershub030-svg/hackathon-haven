@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       applications: {
         Row: {
+          abstract: string | null
           application_data: Json | null
           created_at: string | null
           hackathon_id: string
@@ -27,6 +28,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          abstract?: string | null
           application_data?: Json | null
           created_at?: string | null
           hackathon_id: string
@@ -38,6 +40,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          abstract?: string | null
           application_data?: Json | null
           created_at?: string | null
           hackathon_id?: string
@@ -162,6 +165,149 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      judge_scores: {
+        Row: {
+          created_at: string
+          hackathon_id: string
+          id: string
+          judge_id: string
+          rubric_id: string
+          score: number
+          submitted: boolean
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          hackathon_id: string
+          id?: string
+          judge_id: string
+          rubric_id: string
+          score?: number
+          submitted?: boolean
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          hackathon_id?: string
+          id?: string
+          judge_id?: string
+          rubric_id?: string
+          score?: number
+          submitted?: boolean
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "judge_scores_hackathon_id_fkey"
+            columns: ["hackathon_id"]
+            isOneToOne: false
+            referencedRelation: "hackathons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "judge_scores_judge_id_fkey"
+            columns: ["judge_id"]
+            isOneToOne: false
+            referencedRelation: "judges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "judge_scores_rubric_id_fkey"
+            columns: ["rubric_id"]
+            isOneToOne: false
+            referencedRelation: "judging_rubrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "judge_scores_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      judge_team_assignments: {
+        Row: {
+          created_at: string
+          hackathon_id: string
+          id: string
+          judge_id: string
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          hackathon_id: string
+          id?: string
+          judge_id: string
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          hackathon_id?: string
+          id?: string
+          judge_id?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "judge_team_assignments_hackathon_id_fkey"
+            columns: ["hackathon_id"]
+            isOneToOne: false
+            referencedRelation: "hackathons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "judge_team_assignments_judge_id_fkey"
+            columns: ["judge_id"]
+            isOneToOne: false
+            referencedRelation: "judges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "judge_team_assignments_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      judges: {
+        Row: {
+          added_by: string
+          created_at: string
+          email: string
+          hackathon_id: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          added_by: string
+          created_at?: string
+          email: string
+          hackathon_id: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          added_by?: string
+          created_at?: string
+          email?: string
+          hackathon_id?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "judges_hackathon_id_fkey"
+            columns: ["hackathon_id"]
+            isOneToOne: false
+            referencedRelation: "hackathons"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       judging_rubrics: {
         Row: {

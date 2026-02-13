@@ -16,6 +16,7 @@ import {
   Loader2,
   MessageCircle,
   Image,
+  Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +32,7 @@ import { ProjectSubmissionForm } from '@/components/hackathon/ProjectSubmissionF
 import { DeadlineCountdown } from '@/components/hackathon/DeadlineCountdown';
 import { ParticipantsList } from '@/components/hackathon/ParticipantsList';
 import { TeamFinder } from '@/components/hackathon/TeamFinder';
+import { JuryDashboard } from '@/components/hackathon/JuryDashboard';
 
 const modeIcons = {
   online: Wifi,
@@ -113,6 +115,23 @@ export default function HackathonDetail() {
 
       if (error && error.code !== 'PGRST116') throw error;
       return data;
+    },
+    enabled: !!user && !!id,
+  });
+
+  // Check if user is a judge for this hackathon
+  const { data: isJudge } = useQuery({
+    queryKey: ['user-is-judge', id, user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('judges')
+        .select('id')
+        .eq('hackathon_id', id!)
+        .eq('user_id', user!.id)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') return false;
+      return !!data;
     },
     enabled: !!user && !!id,
   });
@@ -304,6 +323,12 @@ export default function HackathonDetail() {
                     Team Chat
                   </TabsTrigger>
                 )}
+                {user && isJudge && (
+                  <TabsTrigger value="judging">
+                    <Star className="w-4 h-4 mr-2" />
+                    Judging
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               <div className="grid lg:grid-cols-3 gap-8">
@@ -470,6 +495,12 @@ export default function HackathonDetail() {
                   <TabsContent value="chat" className="mt-0">
                     {teamId && <TeamChat teamId={teamId} />}
                   </TabsContent>
+
+                  {user && isJudge && (
+                    <TabsContent value="judging" className="mt-0">
+                      <JuryDashboard hackathonId={id!} />
+                    </TabsContent>
+                  )}
                 </div>
 
                 {/* Sidebar */}
